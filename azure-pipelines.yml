@@ -41,7 +41,7 @@ jobs:
       cargo build --target=x86_64-pc-windows-msvc --release
     displayName: 'Build'
     env:
-      SENTRY_DSN: https://00000000000@sentry.io/000
+      SENTRY_DSN: https://a0b7a479b4094c4d96162e9bf0213095@sentry.io/1491750
   - powershell: |
       $Env:PATH += ";C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool"
       $Env:PATH += ";$(System.DefaultWorkingDirectory)"
