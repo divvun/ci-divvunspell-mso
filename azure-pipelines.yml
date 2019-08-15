@@ -1,73 +1,138 @@
 trigger:
 - master
 
+variables:
+  package_name: "DivvunSpellerMSO.pkg"
+  divvun_bundler_macos: "https://github.com/divvun/divvun-bundler/releases/download/0.1.0/divvun-bundler-macos"
+  pahkat_macos: "https://github.com/divvun/pahkat/releases/download/0.6.0/pahkat-macos"
+
 jobs:
-- job: 'Windows'
+- job: 'macOS'
   pool:
-    vmImage: 'vs2017-win2016'
+    vmImage: 'macOS-10.14'
   steps:
   - task: InstallSSHKey@0
     inputs:
       hostName: gtsvn.uit.no,129.242.4.62 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAneiDKknQ2H37Zs9qyxko3HFDgPrelZKjWAsmSSdMbaFIqLDgJ1VrWemIVOBk2Otqg8GLgf98wU3KOaYGp9obRSVA7jNXSY/eGbfNIehFDJuMRpSfVAiMrcaEQPJICSzX+w3EfT+db7HVLyYtO1bAU7WrKezDZax22L3V4Pxb4QynUo5kagVfEx+C+sJ15nIyf62ADRpU8CoZPUoxeC4Sno4h2m4cThBk6RNOmcZ6XEjaft2nyWQc3G40oEzvfSJDPlbQ+mT9T7eOaE5KRwUXM4XqFr7eqsO8K7zlxlAZEEeqCQu34NkSzQTjYcD6rZrVaVnesreae9J9dwVhpOOnRw==
       sshPublicKey: $(sshKeyPublic)
       sshKeySecureFile: key.private
-  - bash: |
+  - script: |
       set -e
-      git clone git@gtsvn.uit.no:divvunspell-mso
-      curl -sLo LockedList.zip https://nsis.sourceforge.io/mediawiki/images/d/d3/LockedList.zip
-      unzip LockedList.zip "Plugins/*" -d "C:\Program Files (x86)\NSIS" -q
-      unzip LockedList.zip "Plugins/x86-ansi/*" -d "C:\Program Files (x86)\NSIS" -q
-      unzip LockedList.zip "Plugins/x86-unicode/*" -d "C:\Program Files (x86)\NSIS" -q
-      curl -sLo pahkat.exe https://github.com/divvun/pahkat/releases/download/0.6.0/pahkat.exe
-      curl -sLo divvun-bundler.exe https://github.com/divvun/divvun-bundler/releases/download/0.1.0/divvun-bundler.exe
-      curl -sLo win-reg-tool.exe https://github.com/fry/win-reg-tool/releases/download/0.1.3/win-reg-tool.exe
-      curl -sLo rustup-init.exe https://win.rustup.rs/
-      ./rustup-init.exe -y --default-host=i686-pc-windows-msvc --default-toolchain=nightly-i686-pc-windows-msvc
+      curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain nightly -y
       git clone https://github.com/divvun/divvun-ci-config.git
-      openssl aes-256-cbc -d -in ./divvun-ci-config/config.txz.enc -pass pass:$DIVVUN_KEY -out config.txz -md md5
-      7z e config.txz
-      tar xf config.tar
+      wget $(pahkat_macos) -O pahkat
+      chmod +x pahkat
+      wget $(divvun_bundler_macos) -O divvun-bundler
+      chmod +x divvun-bundler
+      git clone git@gtsvn.uit.no:divvunspell-mso
+
+      cd divvun-ci-config
+      sh ./install-macos.sh
     displayName: 'Install prerequisites'
     env:
       DIVVUN_KEY: $(divvunKey)
   - script: |
-      PATH=%PATH%;%USERPROFILE%\.cargo\bin
-      cd divvunspell-mso
-      call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
-      rustup default nightly-i686-pc-windows-msvc
-      cargo build --target=i686-pc-windows-msvc --release
-      call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-      rustup default nightly-x86_64-pc-windows-msvc
-      cargo build --target=x86_64-pc-windows-msvc --release
+      set -e
+      source $HOME/.cargo/env
+      cd $(System.DefaultWorkingDirectory)/divvunspell-mso
+      export VERSION=`cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version'`
+      echo "##vso[task.setvariable variable=VERSION]$VERSION"
+      echo "version $VERSION"
+      touch .env
+      cargo build --all --release
     displayName: 'Build'
     env:
-      SENTRY_DSN: https://a0b7a479b4094c4d96162e9bf0213095@sentry.io/1491750
-  - powershell: |
-      $Env:PATH += ";C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool"
-      $Env:PATH += ";$(System.DefaultWorkingDirectory)"
-      cd divvunspell-mso
-      $version = Select-String -Path .\Cargo.toml -Pattern "^version.*=.*$"
-      $version = $version.Matches[0].Value.Replace('"', '').Replace(' ','').Replace('version=','')
-      divvun-bundler -R -c ..\enc\creds\windows\divvun.pfx -V $version --uuid "{CE70EB42-1935-4B97-AED2-4113D929C485}" -H "Divvunspell MSOffice" -t win msoffice_checker --reg ..\win-reg-tool.exe  --a32 .\target\i686-pc-windows-msvc\release\divvunspellmso.dll --a64 .\target\x86_64-pc-windows-msvc\release\divvunspellmso.dll
-      ls
-      Move-Item divvunspell-mso-$version.exe ..\divvunspell-mso.exe
-    displayName: 'Bundle'
-    env:
-      SIGN_PFX_PASSWORD: $(pfxPassword)
-  - task: PublishBuildArtifacts@1
+      SENTRY_DSN: https://241daeccfa6d4e468992ce43219e670b@sentry.io/1474565
+  - script: |
+      set -e
+      echo "version $(VERSION)"
+      RUST_LOG="divvun_bundler=info" ./divvun-bundler -V $(VERSION) \
+        -R -a "Developer ID Application: The University of Tromso (2K5J2584NX)" -i "Developer ID Installer: The University of Tromso (2K5J2584NX)" \
+        -H "Divvunspell MSOffice" -t osx msoffice_checker \
+        --lib $(System.DefaultWorkingDirectory)/divvunspell-mso/target/release/libdivvunspellmso.dylib
+      mv DivvunSpellerMSO-$(VERSION).pkg $(package_name)
+      pkgutil --check-signature $(package_name)
+  - task: PublishPipelineArtifact@0
     inputs:
-      pathtoPublish: '$(System.DefaultWorkingDirectory)/divvunspell-mso.exe'
-      artifactName: windows
-  - powershell: |
-      . .\divvun-ci-config\repo\scripts\PahkatDeploySvn.ps1
-      $Env:PATH += ";$(System.DefaultWorkingDirectory)"
-      cd divvunspell-mso
-      $version = Select-String -Path .\Cargo.toml -Pattern "^version.*=.*$"
-      $version = $version.Matches[0].Value.Replace('"', '').Replace(' ','').Replace('version=','')
-      PahkatDeploySvn -SvnUrl https://pahkat.uit.no/repo/windows -Artifact "$(System.DefaultWorkingDirectory)\divvunspell-mso.exe" -Package divvunspell-mso -Version $version
+      targetPath: '$(System.DefaultWorkingDirectory)/$(package_name)'
+      artifactName: macos
+    displayName: 'Publish artifact'
+  - script: |
+      set -e
+      echo "version $(VERSION)"
+      export PATH="$PATH:$(System.DefaultWorkingDirectory)"
+      sh divvun-ci-config/repo/scripts/pahkat_deploy_svn.sh https://pahkat.uit.no/repo/macos "$(System.DefaultWorkingDirectory)/$(package_name)" divvunspell-mso $(VERSION)
     displayName: 'Deploy to nightly channel'
     env:
       DEPLOY_SVN_USER: $(svnUser)
       DEPLOY_SVN_PASSWORD: $(svnPassword)
       DEPLOY_SVN_COMMIT: $(svnCommit)
+# - job: 'Windows'
+#   pool:
+#     vmImage: 'vs2017-win2016'
+#   steps:
+#   - task: InstallSSHKey@0
+#     inputs:
+#       hostName: gtsvn.uit.no,129.242.4.62 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAneiDKknQ2H37Zs9qyxko3HFDgPrelZKjWAsmSSdMbaFIqLDgJ1VrWemIVOBk2Otqg8GLgf98wU3KOaYGp9obRSVA7jNXSY/eGbfNIehFDJuMRpSfVAiMrcaEQPJICSzX+w3EfT+db7HVLyYtO1bAU7WrKezDZax22L3V4Pxb4QynUo5kagVfEx+C+sJ15nIyf62ADRpU8CoZPUoxeC4Sno4h2m4cThBk6RNOmcZ6XEjaft2nyWQc3G40oEzvfSJDPlbQ+mT9T7eOaE5KRwUXM4XqFr7eqsO8K7zlxlAZEEeqCQu34NkSzQTjYcD6rZrVaVnesreae9J9dwVhpOOnRw==
+#       sshPublicKey: $(sshKeyPublic)
+#       sshKeySecureFile: key.private
+#   - bash: |
+#       set -e
+#       git clone git@gtsvn.uit.no:divvunspell-mso
+#       curl -sLo LockedList.zip https://nsis.sourceforge.io/mediawiki/images/d/d3/LockedList.zip
+#       unzip LockedList.zip "Plugins/*" -d "C:\Program Files (x86)\NSIS" -q
+#       unzip LockedList.zip "Plugins/x86-ansi/*" -d "C:\Program Files (x86)\NSIS" -q
+#       unzip LockedList.zip "Plugins/x86-unicode/*" -d "C:\Program Files (x86)\NSIS" -q
+#       curl -sLo pahkat.exe https://github.com/divvun/pahkat/releases/download/0.6.0/pahkat.exe
+#       curl -sLo divvun-bundler.exe https://github.com/divvun/divvun-bundler/releases/download/0.1.0/divvun-bundler.exe
+#       curl -sLo win-reg-tool.exe https://github.com/fry/win-reg-tool/releases/download/0.1.3/win-reg-tool.exe
+#       curl -sLo rustup-init.exe https://win.rustup.rs/
+#       ./rustup-init.exe -y --default-host=i686-pc-windows-msvc --default-toolchain=nightly-i686-pc-windows-msvc
+#       git clone https://github.com/divvun/divvun-ci-config.git
+#       openssl aes-256-cbc -d -in ./divvun-ci-config/config.txz.enc -pass pass:$DIVVUN_KEY -out config.txz -md md5
+#       7z e config.txz
+#       tar xf config.tar
+#     displayName: 'Install prerequisites'
+#     env:
+#       DIVVUN_KEY: $(divvunKey)
+#   - script: |
+#       PATH=%PATH%;%USERPROFILE%\.cargo\bin
+#       cd divvunspell-mso
+#       call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
+#       rustup default nightly-i686-pc-windows-msvc
+#       cargo build --target=i686-pc-windows-msvc --release
+#       call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+#       rustup default nightly-x86_64-pc-windows-msvc
+#       cargo build --target=x86_64-pc-windows-msvc --release
+#     displayName: 'Build'
+#     env:
+#       SENTRY_DSN: https://a0b7a479b4094c4d96162e9bf0213095@sentry.io/1491750
+#   - powershell: |
+#       $Env:PATH += ";C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool"
+#       $Env:PATH += ";$(System.DefaultWorkingDirectory)"
+#       cd divvunspell-mso
+#       $version = Select-String -Path .\Cargo.toml -Pattern "^version.*=.*$"
+#       $version = $version.Matches[0].Value.Replace('"', '').Replace(' ','').Replace('version=','')
+#       divvun-bundler -R -c ..\enc\creds\windows\divvun.pfx -V $version --uuid "{CE70EB42-1935-4B97-AED2-4113D929C485}" -H "Divvunspell MSOffice" -t win msoffice_checker --reg ..\win-reg-tool.exe  --a32 .\target\i686-pc-windows-msvc\release\divvunspellmso.dll --a64 .\target\x86_64-pc-windows-msvc\release\divvunspellmso.dll
+#       ls
+#       Move-Item divvunspell-mso-$version.exe ..\divvunspell-mso.exe
+#     displayName: 'Bundle'
+#     env:
+#       SIGN_PFX_PASSWORD: $(pfxPassword)
+#   - task: PublishBuildArtifacts@1
+#     inputs:
+#       pathtoPublish: '$(System.DefaultWorkingDirectory)/divvunspell-mso.exe'
+#       artifactName: windows
+#   - powershell: |
+#       . .\divvun-ci-config\repo\scripts\PahkatDeploySvn.ps1
+#       $Env:PATH += ";$(System.DefaultWorkingDirectory)"
+#       cd divvunspell-mso
+#       $version = Select-String -Path .\Cargo.toml -Pattern "^version.*=.*$"
+#       $version = $version.Matches[0].Value.Replace('"', '').Replace(' ','').Replace('version=','')
+#       PahkatDeploySvn -SvnUrl https://pahkat.uit.no/repo/windows -Artifact "$(System.DefaultWorkingDirectory)\divvunspell-mso.exe" -Package divvunspell-mso -Version $version
+#     displayName: 'Deploy to nightly channel'
+#     env:
+#       DEPLOY_SVN_USER: $(svnUser)
+#       DEPLOY_SVN_PASSWORD: $(svnPassword)
+#       DEPLOY_SVN_COMMIT: $(svnCommit)
   
