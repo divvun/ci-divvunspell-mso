@@ -98,6 +98,7 @@ jobs:
   - script: |
       PATH=%PATH%;%USERPROFILE%\.cargo\bin
       cd divvunspell-mso
+      touch .env
       call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
       rustup default nightly-i686-pc-windows-msvc
       cargo build --target=i686-pc-windows-msvc --release
