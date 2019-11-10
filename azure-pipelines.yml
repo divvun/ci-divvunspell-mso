@@ -5,7 +5,7 @@ variables:
   package_name: "DivvunSpellerMSO.pkg"
   divvun_bundler_macos: "https://github.com/divvun/divvun-bundler/releases/download/0.1.0/divvun-bundler-macos"
   pahkat_macos: "https://github.com/divvun/pahkat/releases/download/0.6.0/pahkat-macos"
-
+  
 jobs:
 - job: 'macOS'
   pool:
@@ -32,6 +32,9 @@ jobs:
     env:
       DIVVUN_KEY: $(divvunKey)
   - script: |
+      brew cask install microsoft-office
+    displayName: 'Install MS Office'
+  - script: |
       set -e
       source $HOME/.cargo/env
       cd $(System.DefaultWorkingDirectory)/divvunspell-mso
@@ -49,7 +52,8 @@ jobs:
       RUST_LOG="divvun_bundler=info" ./divvun-bundler -V $(VERSION) \
         -R -a "Developer ID Application: The University of Tromso (2K5J2584NX)" -i "Developer ID Installer: The University of Tromso (2K5J2584NX)" \
         -H "Divvunspell MSOffice" -t osx msoffice_checker \
-        --lib $(System.DefaultWorkingDirectory)/divvunspell-mso/target/release/libdivvunspellmso.dylib
+        --lib $(System.DefaultWorkingDirectory)/divvunspell-mso/target/release/libdivvunspellmso.dylib \
+        --mso /Applications/Microsoft\ Word.app
       mv DivvunSpellerMSO-$(VERSION).pkg $(package_name)
       pkgutil --check-signature $(package_name)
   - task: PublishPipelineArtifact@0
