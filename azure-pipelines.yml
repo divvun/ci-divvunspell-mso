@@ -28,6 +28,8 @@ jobs:
 
       cd divvun-ci-config
       sh ./install-macos.sh
+
+      brew install bsdiff
     displayName: 'Install prerequisites'
     env:
       DIVVUN_KEY: $(divvunKey)
