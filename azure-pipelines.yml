@@ -40,7 +40,7 @@ jobs:
       set -e
       source $HOME/.cargo/env
       cd $(System.DefaultWorkingDirectory)/divvunspell-mso
-      export VERSION=`cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version'`
+      export VERSION=`cargo metadata --no-deps --format-version=1 | jq -r '.packages[] | select(.name == "divvunspell-mso") | .version'`
       echo "##vso[task.setvariable variable=VERSION]$VERSION"
       echo "version $VERSION"
       touch .env
@@ -117,12 +117,12 @@ jobs:
   - powershell: |
       $Env:PATH += ";C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool"
       $Env:PATH += ";$(System.DefaultWorkingDirectory)"
-      cd divvunspell-mso
+      cd divvunspell-mso\divvunspell-mso
       $version = Select-String -Path .\Cargo.toml -Pattern "^version.*=.*$"
       $version = $version.Matches[0].Value.Replace('"', '').Replace(' ','').Replace('version=','')
-      divvun-bundler -R -c ..\enc\creds\windows\divvun.pfx -V $version --uuid "{CE70EB42-1935-4B97-AED2-4113D929C485}" -H "Divvunspell MSOffice" -t win msoffice_checker --reg ..\win-reg-tool.exe  --a32 .\target\i686-pc-windows-msvc\release\divvunspellmso.dll --a64 .\target\x86_64-pc-windows-msvc\release\divvunspellmso.dll
+      divvun-bundler -R -c "$(System.DefaultWorkingDirectory)\enc\creds\windows\divvun.pfx" -V $version --uuid "{CE70EB42-1935-4B97-AED2-4113D929C485}" -H "Divvunspell MSOffice" -t win msoffice_checker --reg "$(System.DefaultWorkingDirectory)\win-reg-tool.exe"  --a32 ..\target\i686-pc-windows-msvc\release\divvunspellmso.dll --a64 ..\target\x86_64-pc-windows-msvc\release\divvunspellmso.dll
       ls
-      Move-Item divvunspell-mso-$version.exe ..\divvunspell-mso.exe
+      Move-Item divvunspell-mso-$version.exe $(System.DefaultWorkingDirectory)\divvunspell-mso.exe
     displayName: 'Bundle'
     env:
       SIGN_PFX_PASSWORD: $(pfxPassword)
@@ -133,7 +133,7 @@ jobs:
   - powershell: |
       . .\divvun-ci-config\repo\scripts\PahkatDeploySvn.ps1
       $Env:PATH += ";$(System.DefaultWorkingDirectory)"
-      cd divvunspell-mso
+      cd divvunspell-mso\divvunspell-mso
       $version = Select-String -Path .\Cargo.toml -Pattern "^version.*=.*$"
       $version = $version.Matches[0].Value.Replace('"', '').Replace(' ','').Replace('version=','')
       PahkatDeploySvn -SvnUrl https://pahkat.uit.no/repo/windows -Artifact "$(System.DefaultWorkingDirectory)\divvunspell-mso.exe" -Package divvunspell-mso -Version $version
