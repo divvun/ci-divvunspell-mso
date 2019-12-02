@@ -38,7 +38,7 @@ jobs:
         parameters:
           word_versions:
             - "16.16.19111100"
-            - "16.31.19111002"
+            # - "16.31.19111002"
       - script: |
           set -e
           source $HOME/.cargo/env

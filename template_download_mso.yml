@@ -15,3 +15,15 @@ steps:
         env:
           MSO_VER: ${{ ver }}
           MSO_URL: ${{ format(parameters['word_url_template'], ver) }}
+  - script: |
+      set -eux
+      MSO_VER=$(brew cask cat microsoft-word | grep "version '" | awk -F "'" '{print $2}')
+      MSO_URL=${MSO_URL/\{0\}/$MSO_VER}
+      wget -O mso.pkg "$MSO_URL"
+      sudo installer -verbose -pkg mso.pkg -target /
+      rm mso.pkg
+      sudo mv "/Applications/Microsoft Word.app" "$MSO_VER"
+      echo "##vso[task.setvariable variable=mso]$MSO --mso \"$PWD/$MSO_VER\""
+    displayName: "Install latest MS Office"
+    env:
+      MSO_URL: ${{ parameters['word_url_template'] }}
