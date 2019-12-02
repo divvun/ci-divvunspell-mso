@@ -71,6 +71,8 @@ jobs:
           echo "version $(VERSION)"
           export PATH="$PATH:$(System.DefaultWorkingDirectory)"
           sh divvun-ci-config/repo/scripts/pahkat_deploy_svn.sh https://pahkat.uit.no/repo/macos "$(System.DefaultWorkingDirectory)/$(package_name)" divvunspell-mso $(VERSION)
+          sh divvun-ci-config/repo/scripts/pahkat_deploy_svn.sh https://pahkat.uit.no/repo/misc-macos "$(System.DefaultWorkingDirectory)/$(package_name)" divvunspell-mso $(VERSION)
+          sh divvun-ci-config/repo/scripts/pahkat_deploy_svn.sh https://pahkat.uit.no/repo/canada-macos "$(System.DefaultWorkingDirectory)/$(package_name)" divvunspell-mso $(VERSION)
         displayName: "Deploy to nightly channel"
         env:
           DEPLOY_SVN_USER: $(svnUser)
@@ -140,6 +142,8 @@ jobs:
           $version = Select-String -Path .\Cargo.toml -Pattern "^version.*=.*$"
           $version = $version.Matches[0].Value.Replace('"', '').Replace(' ','').Replace('version=','')
           PahkatDeploySvn -SvnUrl https://pahkat.uit.no/repo/windows -Artifact "$(System.DefaultWorkingDirectory)\divvunspell-mso.exe" -Package divvunspell-mso -Version $version
+          PahkatDeploySvn -SvnUrl https://pahkat.uit.no/repo/misc-win -Artifact "$(System.DefaultWorkingDirectory)\divvunspell-mso.exe" -Package divvunspell-mso -Version $version
+          PahkatDeploySvn -SvnUrl https://pahkat.uit.no/repo/canada-win -Artifact "$(System.DefaultWorkingDirectory)\divvunspell-mso.exe" -Package divvunspell-mso -Version $version
         displayName: "Deploy to nightly channel"
         env:
           DEPLOY_SVN_USER: $(svnUser)
