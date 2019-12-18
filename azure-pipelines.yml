@@ -20,6 +20,10 @@ jobs:
     pool:
       vmImage: "macOS-10.14"
     steps:
+      - task: Cache@2
+        inputs:
+          key: "extra_patches"
+          path: $(extra_patches_dir)
       - task: InstallSSHKey@0
         inputs:
           hostName: gtsvn.uit.no,129.242.4.62 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAneiDKknQ2H37Zs9qyxko3HFDgPrelZKjWAsmSSdMbaFIqLDgJ1VrWemIVOBk2Otqg8GLgf98wU3KOaYGp9obRSVA7jNXSY/eGbfNIehFDJuMRpSfVAiMrcaEQPJICSzX+w3EfT+db7HVLyYtO1bAU7WrKezDZax22L3V4Pxb4QynUo5kagVfEx+C+sJ15nIyf62ADRpU8CoZPUoxeC4Sno4h2m4cThBk6RNOmcZ6XEjaft2nyWQc3G40oEzvfSJDPlbQ+mT9T7eOaE5KRwUXM4XqFr7eqsO8K7zlxlAZEEeqCQu34NkSzQTjYcD6rZrVaVnesreae9J9dwVhpOOnRw==
@@ -35,22 +39,21 @@ jobs:
 
           cd divvun-ci-config
           sh ./install-macos.sh
+
+          mkdir -p "$(extra_patches_dir)/install/"
+          mkdir -p "$(extra_patches_dir)/uninstall/"
         displayName: "Install prerequisites"
         env:
           DIVVUN_KEY: $(divvunKey)
-      - task: Cache@2
-        inputs:
-          key: "extra_patches"
-          path: $(extra_patches_dir)
       - template: template_download_mso.yml
         parameters:
           extra_patches_dir: $(extra_patches_dir)
           word_versions:
-            #- "16.16.19111100"
+            - "16.16.19111100"
             - "16.16.19120800"
-            #- "16.30.19101301"
-            #- "16.31.19111002"
-            #- "16.32.19120802"
+            - "16.30.19101301"
+            - "16.31.19111002"
+            - "16.32.19120802"
       - task: Cache@2
         inputs:
           key: "divvunspell-mso"
@@ -86,8 +89,6 @@ jobs:
             $(mso)
           mv outputs/DivvunSpellerMSO-$(VERSION).pkg $(package_name)
           pkgutil --check-signature $(package_name)
-          mkdir -p "$(extra_patches_dir)/install/"
-          mkdir -p "$(extra_patches_dir)/uninstall/"
           cp -R outputs/install/* "$(extra_patches_dir)/install/"
           cp -R outputs/uninstall/* "$(extra_patches_dir)/uninstall/"
       - task: PublishPipelineArtifact@0
