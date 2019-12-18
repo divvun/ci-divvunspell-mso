@@ -1,11 +1,16 @@
 parameters:
   word_versions: []
+  extra_patches_dir: "."
   word_url_template: "https://officecdn-microsoft-com.akamaized.net/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Word_{0}_Installer.pkg"
 
 steps:
   - ${{ each ver in parameters.word_versions }}:
       - script: |
           set -e
+          if [[ -f "$(extra_patches_dir)/install/$MSO_VER.patch" && -f "$(extra_patches_dir)/uninstall/$MSO_VER.patch" ]]; then
+            echo "Patch exists"
+            exit 0
+          fi
           wget -O mso.pkg "$MSO_URL"
           sudo installer -verbose -pkg mso.pkg -target /
           rm mso.pkg
@@ -19,6 +24,10 @@ steps:
       set -eux
       MSO_VER=$(brew cask cat microsoft-word | grep "version '" | awk -F "'" '{print $2}')
       MSO_URL=${MSO_URL/\{0\}/$MSO_VER}
+      if [[ -f "$(extra_patches_dir)/install/$MSO_VER.patch" && -f "$(extra_patches_dir)/uninstall/$MSO_VER.patch" ]]; then
+        echo "Patch exists"
+        exit 0
+      fi
       wget -O mso.pkg "$MSO_URL"
       sudo installer -verbose -pkg mso.pkg -target /
       rm mso.pkg
