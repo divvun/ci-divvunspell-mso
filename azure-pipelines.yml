@@ -13,7 +13,9 @@ variables:
   package_name: "DivvunSpellerMSO.pkg"
   pahkat_macos: "https://github.com/divvun/pahkat/releases/download/0.6.0/pahkat-macos"
   word_url_template: "https://officecdn-microsoft-com.akamaized.net/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Word_{0}_Installer.pkg"
-  extra_patches_dir: "$(System.DefaultWorkingDirectory)/extra_patches"
+  extra_patches_dir: "$(System.DefaultWorkingDirectory)/divvunspell-mso/patches"
+  sentry_dsn_macos: "https://9bc20996fff5494ea39c510e0625b145@sentry.io/1491749"
+  sentry_dsn_windows: "https://a0b7a479b4094c4d96162e9bf0213095@sentry.io/1491750"
 
 jobs:
   - job: "macOS"
@@ -22,8 +24,12 @@ jobs:
     steps:
       - task: Cache@2
         inputs:
-          key: "extra_patches"
-          path: $(extra_patches_dir)
+          key: "cargo"
+          path: $(Agent.HomeDirectory)/.cargo
+      - task: Cache@2
+        inputs:
+          key: "cargo"
+          path: $(Agent.HomeDirectory)/.rustup
       - task: InstallSSHKey@0
         inputs:
           hostName: gtsvn.uit.no,129.242.4.62 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAneiDKknQ2H37Zs9qyxko3HFDgPrelZKjWAsmSSdMbaFIqLDgJ1VrWemIVOBk2Otqg8GLgf98wU3KOaYGp9obRSVA7jNXSY/eGbfNIehFDJuMRpSfVAiMrcaEQPJICSzX+w3EfT+db7HVLyYtO1bAU7WrKezDZax22L3V4Pxb4QynUo5kagVfEx+C+sJ15nIyf62ADRpU8CoZPUoxeC4Sno4h2m4cThBk6RNOmcZ6XEjaft2nyWQc3G40oEzvfSJDPlbQ+mT9T7eOaE5KRwUXM4XqFr7eqsO8K7zlxlAZEEeqCQu34NkSzQTjYcD6rZrVaVnesreae9J9dwVhpOOnRw==
@@ -53,7 +59,7 @@ jobs:
             - "16.16.19120800"
             - "16.30.19101301"
             - "16.31.19111002"
-            - "16.32.19120802"
+            # - "16.32.19120802"
       - task: Cache@2
         inputs:
           key: "divvunspell-mso"
@@ -75,7 +81,7 @@ jobs:
           CARGO_INCREMENTAL=0 cargo build --all --release
         displayName: "Build"
         env:
-          SENTRY_DSN: https://241daeccfa6d4e468992ce43219e670b@sentry.io/1474565
+          SENTRY_DSN: $(sentry_dsn_macos)
       - script: |
           set -e
           source $HOME/.cargo/env
@@ -89,8 +95,17 @@ jobs:
             $(mso)
           mv outputs/DivvunSpellerMSO-$(VERSION).pkg $(package_name)
           pkgutil --check-signature $(package_name)
+      - script: |
+          set -e
           cp -R outputs/install/* "$(extra_patches_dir)/install/"
           cp -R outputs/uninstall/* "$(extra_patches_dir)/uninstall/"
+          cd $(extra_patches_dir)
+          git add .
+          if ! git diff --quiet --exit-code; then
+            git commit -a -m "CI: Add new patch(es)"
+            git push
+          fi
+        displayName: Commit new patches
       - task: PublishPipelineArtifact@0
         inputs:
           targetPath: "$(extra_patches_dir)"
@@ -152,7 +167,7 @@ jobs:
           cargo build --target=x86_64-pc-windows-msvc --release
         displayName: "Build"
         env:
-          SENTRY_DSN: https://a0b7a479b4094c4d96162e9bf0213095@sentry.io/1491750
+          SENTRY_DSN: $(sentry_dsn_windows)
       - powershell: |
           $Env:PATH += ";C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool"
           $Env:PATH += ";$(System.DefaultWorkingDirectory)"

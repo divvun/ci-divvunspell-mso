@@ -31,6 +31,7 @@ steps:
       wget -O mso.pkg "$MSO_URL"
       sudo installer -verbose -pkg mso.pkg -target /
       rm mso.pkg
+      rm -rf "$MSO_VER"
       sudo mv "/Applications/Microsoft Word.app" "$MSO_VER"
       echo "##vso[task.setvariable variable=mso]$MSO --mso \"$PWD/$MSO_VER\""
     displayName: "Install latest MS Office"
