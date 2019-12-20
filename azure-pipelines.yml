@@ -45,9 +45,7 @@ jobs:
           mkdir -p "$(extra_patches_dir)/install/"
           mkdir -p "$(extra_patches_dir)/uninstall/"
 
-          echo $HOME
-          ls -lah $HOME
-          echo $(Agent.HomeDirectory)
+          curl -sL https://sentry.io/get-cli/ | bash
         displayName: "Install prerequisites"
         env:
           DIVVUN_KEY: $(divvunKey)
@@ -86,7 +84,8 @@ jobs:
           set -e
           source $HOME/.cargo/env
           echo "version $(VERSION)"
-          RUST_LOG="divvun_bundler=info" PATCHER_PATH="$(System.DefaultWorkingDirectory)/divvunspell-mso/target/release/patcher" divvun-bundler -V $(VERSION) \
+          RUST_LOG="divvun_bundler=info" SENTRY_CLI_PATH="/usr/local/bin/sentry-cli" PATCHER_PATH="$(System.DefaultWorkingDirectory)/divvunspell-mso/target/release/patcher" \
+          divvun-bundler -V $(VERSION) \
             -o outputs \
             -R -a "Developer ID Application: The University of Tromso (2K5J2584NX)" -i "Developer ID Installer: The University of Tromso (2K5J2584NX)" \
             -H "Divvunspell MSOffice" -t osx msoffice_checker \
@@ -95,6 +94,9 @@ jobs:
             $(mso)
           mv outputs/DivvunSpellerMSO-$(VERSION).pkg $(package_name)
           pkgutil --check-signature $(package_name)
+        displayName: "Create Patches & Bundle"
+        env:
+          SENTRY_DSN: $(sentry_dsn_macos)
       - task: PublishPipelineArtifact@0
         inputs:
           targetPath: "$(extra_patches_dir)"
