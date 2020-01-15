@@ -21,7 +21,8 @@ steps:
           MSO_VER: ${{ ver }}
           MSO_URL: ${{ format(parameters['word_url_template'], ver) }}
   - script: |
-      set -eux
+      set -ex
+      brew update
       MSO_VER=$(brew cask cat microsoft-word | grep "version '" | awk -F "'" '{print $2}')
       MSO_URL=${MSO_URL/\{0\}/$MSO_VER}
       if [[ -f "$(extra_patches_dir)/install/$MSO_VER.patch" && -f "$(extra_patches_dir)/uninstall/$MSO_VER.patch" ]]; then
