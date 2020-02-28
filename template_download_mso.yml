@@ -38,3 +38,22 @@ steps:
     displayName: "Install latest MS Office"
     env:
       MSO_URL: ${{ parameters['word_url_template'] }}
+  - script: |
+      set -ex
+      brew update
+      url="https://docs.microsoft.com/en-us/officeupdates/release-notes-office-2016-mac"
+      MSO_VER=$(wget -q -O - $url | sed -En 's/.*Version ([0-9]+)\.([0-9]+)\.[0-9]+ \(([0-9]+)\).*/\1\.\2.\3/p')
+      MSO_URL=${MSO_URL/\{0\}/$MSO_VER}
+      if [[ -f "$(extra_patches_dir)/install/$MSO_VER.patch" && -f "$(extra_patches_dir)/uninstall/$MSO_VER.patch" ]]; then
+        echo "Patch exists"
+        exit 0
+      fi
+      wget -O mso.pkg "$MSO_URL"
+      sudo installer -verbose -pkg mso.pkg -target /
+      rm mso.pkg
+      rm -rf "$MSO_VER"
+      sudo mv "/Applications/Microsoft Word.app" "$MSO_VER"
+      echo "##vso[task.setvariable variable=mso]$MSO --mso \"$PWD/$MSO_VER\""
+    displayName: "Install latest ProPlus MS Office"
+    env:
+      MSO_URL: ${{ parameters['word_url_template'] }}
