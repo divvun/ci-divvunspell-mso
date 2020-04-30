@@ -40,9 +40,8 @@ steps:
       MSO_URL: ${{ parameters['word_url_template'] }}
   - script: |
       set -ex
-      brew update
       url="https://docs.microsoft.com/en-us/officeupdates/release-notes-office-2016-mac"
-      MSO_VER=$(wget -q -O - $url | sed -En 's/.*Version ([0-9]+)\.([0-9]+)\.[0-9]+ \(([0-9]+)\).*/\1\.\2.\3/p')
+      MSO_VER=$(wget -q -O - $url | sed -En 's/.*Version ([0-9]+)\.([0-9]+)\.[0-9]+ \(([0-9]+)\).*/\1\.\2.\3/p' | head -n 1)
       MSO_URL=${MSO_URL/\{0\}/$MSO_VER}
       if [[ -f "$(extra_patches_dir)/install/$MSO_VER.patch" && -f "$(extra_patches_dir)/uninstall/$MSO_VER.patch" ]]; then
         echo "Patch exists"
