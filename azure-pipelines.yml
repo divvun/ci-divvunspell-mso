@@ -39,6 +39,8 @@ jobs:
           git clone https://github.com/divvun/divvun-ci-config.git
           wget -O pahkat-repomgr "$(pahkat_repomgr_macos)"
           chmod +x pahkat-repomgr
+          wget -O xcnotary https://github.com/fry/xcnotary/releases/download/v0.4.1/xcnotary
+          chmod +x xcnotary
           git clone git@gtsvn.uit.no:divvunspell-mso
 
           cd divvun-ci-config
@@ -74,6 +76,7 @@ jobs:
       - script: |
           set -e
           source $HOME/.cargo/env
+          export PATH="$PATH:$(System.DefaultWorkingDirectory)"
           cd $(System.DefaultWorkingDirectory)/divvunspell-mso
           export VERSION=`cargo metadata --no-deps --format-version=1 | jq -r '.packages[] | select(.name == "divvunspell-mso") | .version'`
           echo "##vso[task.setvariable variable=VERSION]$VERSION"
@@ -85,6 +88,7 @@ jobs:
           SENTRY_DSN: $(sentry_dsn_macos)
       - script: |
           set -e
+          export PATH="$PATH:$(System.DefaultWorkingDirectory)"
           source $HOME/.cargo/env
           source "$(System.DefaultWorkingDirectory)/divvun-ci-config/enc/env.sh"
           echo "version $(VERSION)"
@@ -171,13 +175,13 @@ jobs:
         env:
           DIVVUN_KEY: $(divvunKey)
       - powershell: |
-          $Env:PATH = $Env:PATH;$Env:USERPROFILE\.cargo\bin
+          $Env:PATH += ";$Env:USERPROFILE\.cargo\bin"
           cd divvunspell-mso
           touch .env
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
+          &"C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
           rustup default nightly-i686-pc-windows-msvc
           cargo build --target=i686-pc-windows-msvc --release
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          &"C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           rustup default nightly-x86_64-pc-windows-msvc
           cargo build --target=x86_64-pc-windows-msvc --release
 
@@ -190,12 +194,13 @@ jobs:
           $Env:PATH += ";C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool"
           $Env:PATH += ";$(System.DefaultWorkingDirectory)"
           cd divvunspell-mso\divvunspell-mso
-          $version = $(VERSION)
-          divvun-bundler -R -c "$(System.DefaultWorkingDirectory)\enc\creds\windows\divvun.pfx" -V $version --uuid "{CE70EB42-1935-4B97-AED2-4113D929C485}" `
+          echo $(VERSION)
+          divvun-bundler -R -c "$(System.DefaultWorkingDirectory)\enc\creds\windows\divvun.pfx" -V "$(VERSION)" --uuid "{CE70EB42-1935-4B97-AED2-4113D929C485}" `
             -H "Divvunspell MSOffice" -t win msoffice_checker --reg "$(System.DefaultWorkingDirectory)\win-reg-tool.exe"  `
             --a32 ..\target\i686-pc-windows-msvc\release\divvunspellmso.dll --a64 ..\target\x86_64-pc-windows-msvc\release\divvunspellmso.dll
           ls
-          Move-Item divvunspell-mso-$version.exe $(System.DefaultWorkingDirectory)\divvunspell-mso.exe
+          echo $(VERSION)
+          Move-Item "divvunspell-mso-$(VERSION).exe" $(System.DefaultWorkingDirectory)\divvunspell-mso.exe
         displayName: "Bundle"
         env:
           SIGN_PFX_PASSWORD: $(pfxPassword)
@@ -208,7 +213,7 @@ jobs:
           echo "version $(VERSION)"
           export PATH="$PATH:$(System.DefaultWorkingDirectory)"
 
-          source "$(System.DefaultWorkingDirectory)/divvun-ci-config/enc/env.sh"
+          source "$(System.DefaultWorkingDirectory)/enc/env.sh"
           export DEPLOY_SVN_REPO="https://pahkat.uit.no/tools"
           export DEPLOY_SVN_PKG_ID="divvunspell-mso"
           export DEPLOY_SVN_PKG_PLATFORM="windows"
