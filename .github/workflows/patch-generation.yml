@@ -14,6 +14,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
+      with:
+        repository: divvun/mso-nda-resources
+        ssh-key: ${{ secrets.SSH_KEY }}
 
     - name: Setup Divvun CI
       uses: divvun/actions/setup@master
@@ -27,24 +30,100 @@ jobs:
         profile: minimal
         override: true
     
+    - name: Install sentry-cli
+      run: curl -sL https://sentry.io/get-cli/ | bash
+
+    - name: Install build tools from Pahkat for macOS
+      uses: divvun/actions/pahkat/init@master
+      with:
+        repo: https://pahkat.uit.no/devtools/
+        channel: nightly
+        packages: pahkat-uploader, xcnotary
+
+    - name: Install patch detector dependencies
+      run: npm install
+      working-directory: mso-patcher
+
     - name: Build patch detector
       run: npm run build
       working-directory: mso-patcher
     
     - run: |
+        mkdir mso
         for MSO_URL in $(node ./mso-patcher/dist/unpatched.js);
         do
           export MSO_VER=$(echo $MSO_URL | sed -e 's/https:\/\/officecdn-microsoft-com.akamaized.net\/pr\/C1297A47-86C4-4C1F-97FA-950631F94777\/MacAutoupdate\/Microsoft_Word_\(.*\)_Installer\.pkg/\1/')
-          wget -o mso.pkg "$MSO_URL"
+          echo $MSO_VER
+          echo $MSO_URL
+          curl $MSO_URL -o mso.pkg
           sudo installer -verbose -pkg mso.pkg -target /
           rm mso.pkg
-          sudo mv "/Applications/Microsoft Word.app" $MSO_VER
-          echo "##vso[task.setvariable variable=mso]$MSO --mso \"$PWD/$MSO_VER\""
+          sudo mv "/Applications/Microsoft Word.app" mso/$MSO_VER
+          export MSO="$MSO --mso $PWD/mso/$MSO_VER"
         done
+        echo "mso=$MSO" >> $GITHUB_ENV
       name: Download MS Office versions
 
     - name: Build rust tools
       uses: actions-rs/cargo@v1
       with:
         command: build
+        args: --release
+    
+    - name: Get version
+      id: version
+      uses: divvun/actions/version@master
+      with:
+        cargo: divvunspell-mso/Cargo.toml
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Generate patches
+      run: |
+          source "$DIVVUN_CI_CONFIG/enc/env.sh"
+          echo "version $VERSION"
+          RUST_LOG="info" SENTRY_CLI_PATH="/usr/local/bin/sentry-cli" PATCHER_PATH="./target/release/patcher" \
+          ./target/release/divvun-bundler -V $VERSION \
+            -o outputs \
+            -R -a "Developer ID Application: The University of Tromso (2K5J2584NX)" -i "Developer ID Installer: The University of Tromso (2K5J2584NX)" \
+            -n "$DEVELOPER_ACCOUNT" -p "$DEVELOPER_PASSWORD_CHAIN_ITEM" \
+            -H "Divvunspell MSOffice" -t osx msoffice_checker \
+            --lib ./target/release/libdivvunspellmso.dylib \
+            --mso_patches "./patches" \
+            $mso
+
+          mv outputs/DivvunSpellMSO-$VERSION.pkg DivvunSpellMSO.pkg
+          pkgutil --check-signature DivvunSpellMSO.pkg
+      env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SENTRY_DSN: "https://9bc20996fff5494ea39c510e0625b145@sentry.io/1491749"
+
+    
+    - name: Deploy to nightly
+      uses: divvun/actions/deploy@master
+      with:
+        package-id: divvunspell-mso
+        macos-pkg-id: "no.divvun.DivvunSpellMSO"
+        platform: macos
+        version: ${{ steps.version.outputs.version }}
+        payload-path: DivvunSpellMSO.pkg
+        repo: https://pahkat.thetc.se/tools/
+        channel: ${{ steps.version.outputs.channel }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Clean Git Repo
+      run: |
+          sudo rm -rf mso
+          rm metadata.toml
+          cp outputs/install/* "./patches/install/" || true
+          cp outputs/uninstall/* "./patches/uninstall/" || true
+
+    - name: Create Pull Request
+      if: ${{ github.event.inputs.pr }}
+      uses: peter-evans/create-pull-request@v3
+      with:
+        branch: "feature/patches"
+        delete-branch: true
+        title: Add new patch files
+        draft: true
+        token: ${{ secrets.PR_TOKEN }}
       
