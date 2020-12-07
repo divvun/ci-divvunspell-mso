@@ -91,8 +91,8 @@ jobs:
             --mso_patches "./patches" \
             $mso
 
-          mv outputs/DivvunSpellMSO-$VERSION.pkg DivvunSpellMSO.pkg
-          pkgutil --check-signature DivvunSpellMSO.pkg
+          mv outputs/DivvunSpell-$VERSION.pkg DivvunSpell.pkg
+          pkgutil --check-signature DivvunSpell.pkg
       env:
           VERSION: ${{ steps.version.outputs.version }}
           SENTRY_DSN: "https://9bc20996fff5494ea39c510e0625b145@sentry.io/1491749"
@@ -102,10 +102,10 @@ jobs:
       uses: divvun/actions/deploy@master
       with:
         package-id: divvunspell-mso
-        macos-pkg-id: "no.divvun.DivvunSpellMSO"
+        macos-pkg-id: "no.divvun.DivvunSpell"
         platform: macos
         version: ${{ steps.version.outputs.version }}
-        payload-path: DivvunSpellMSO.pkg
+        payload-path: DivvunSpell.pkg
         repo: https://pahkat.thetc.se/tools/
         channel: ${{ steps.version.outputs.channel }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
