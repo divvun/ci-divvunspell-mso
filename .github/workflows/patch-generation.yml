@@ -82,7 +82,7 @@ jobs:
           source "$DIVVUN_CI_CONFIG/enc/env.sh"
           echo "version $VERSION"
           RUST_LOG="info" SENTRY_CLI_PATH="/usr/local/bin/sentry-cli" PATCHER_PATH="./target/release/patcher" \
-          ./target/release/divvun-bundler -V $VERSION \
+          ./target/release/divvun-bundler-mso -V $VERSION \
             -o outputs \
             -R -a "Developer ID Application: The University of Tromso (2K5J2584NX)" -i "Developer ID Installer: The University of Tromso (2K5J2584NX)" \
             -n "$DEVELOPER_ACCOUNT" -p "$DEVELOPER_PASSWORD_CHAIN_ITEM" \
