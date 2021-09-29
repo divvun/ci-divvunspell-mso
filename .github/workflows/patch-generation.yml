@@ -31,7 +31,7 @@ jobs:
         override: true
     
     - name: Install sentry-cli
-      run: curl -sL https://sentry.io/get-cli/ | bash
+      run: wget -O sentry-cli https://github.com/getsentry/sentry-cli/releases/download/1.68.0/sentry-cli-Darwin-universal
 
     - name: Install build tools from Pahkat for macOS
       uses: divvun/actions/pahkat/init@master
@@ -50,7 +50,7 @@ jobs:
     
     - run: |
         mkdir mso
-        for MSO_URL in $(node ./mso-patcher/dist/unpatched.js);
+        for MSO_URL in $(node ./mso-patcher/dist/unpatched.js | head -n1);
         do
           export MSO_VER=$(echo $MSO_URL | sed -e 's/https:\/\/officecdn-microsoft-com.akamaized.net\/pr\/C1297A47-86C4-4C1F-97FA-950631F94777\/MacAutoupdate\/Microsoft_Word_\(.*\)_Installer\.pkg/\1/')
           echo $MSO_VER
@@ -70,6 +70,13 @@ jobs:
         command: build
         args: --release
     
+    - name: Build rust tools (aarch64)
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        target: aarch64-apple-darwin
+        args: --release
+    
     - name: Get version
       id: version
       uses: divvun/actions/version@master
@@ -77,17 +84,23 @@ jobs:
         cargo: divvunspell-mso/Cargo.toml
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+
+    - name: Generate MultiArch MachOs
+      run: |
+        lipo -create -output patcher ./target/release/patcher ./target/aarch64-apple-darwin/release/patcher
+        lipo -create -output libdivvunspellmso.dylib ./target/aarch64-apple-darwin/release/libdivvunspellmso.dylib ./target/release/libdivvunspellmso.dylib
+
     - name: Generate patches
       run: |
           source "$DIVVUN_CI_CONFIG/enc/env.sh"
           echo "version $VERSION"
-          RUST_LOG="info" SENTRY_CLI_PATH="/usr/local/bin/sentry-cli" PATCHER_PATH="./target/release/patcher" \
+          RUST_LOG="info" SENTRY_CLI_PATH="./sentry-cli" PATCHER_PATH="./patcher" \
           ./target/release/divvun-bundler-mso -V $VERSION \
             -o outputs \
             -R -a "Developer ID Application: The University of Tromso (2K5J2584NX)" -i "Developer ID Installer: The University of Tromso (2K5J2584NX)" \
             -n "$DEVELOPER_ACCOUNT" -p "$DEVELOPER_PASSWORD_CHAIN_ITEM" \
             -H "Divvunspell MSOffice" -t osx msoffice_checker \
-            --lib ./target/release/libdivvunspellmso.dylib \
+            --lib ./libdivvunspellmso.dylib \
             --mso_patches "./patches" \
             $mso
 
