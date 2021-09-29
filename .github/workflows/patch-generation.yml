@@ -29,6 +29,7 @@ jobs:
         toolchain: nightly
         profile: minimal
         override: true
+        target: aarch64-apple-darwin
     
     - name: Install sentry-cli
       run: wget -O sentry-cli https://github.com/getsentry/sentry-cli/releases/download/1.68.0/sentry-cli-Darwin-universal
@@ -50,7 +51,7 @@ jobs:
     
     - run: |
         mkdir mso
-        for MSO_URL in $(node ./mso-patcher/dist/unpatched.js | head -n1);
+        for MSO_URL in $(node ./mso-patcher/dist/unpatched.js | head -n1 | sed -e 's/Office/Word/');
         do
           export MSO_VER=$(echo $MSO_URL | sed -e 's/https:\/\/officecdn-microsoft-com.akamaized.net\/pr\/C1297A47-86C4-4C1F-97FA-950631F94777\/MacAutoupdate\/Microsoft_Word_\(.*\)_Installer\.pkg/\1/')
           echo $MSO_VER
