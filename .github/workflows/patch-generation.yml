@@ -53,7 +53,7 @@ jobs:
         mkdir mso
         for MSO_URL in $(node ./mso-patcher/dist/unpatched.js | head -n1 | sed -e 's/Office/Word/');
         do
-          export MSO_VER=$(echo $MSO_URL | sed -e 's/https:\/\/officecdn-microsoft-com.akamaized.net\/pr\/C1297A47-86C4-4C1F-97FA-950631F94777\/MacAutoupdate\/Microsoft_Word_\(.*\)_Installer\.pkg/\1/')
+          export MSO_VER=$(echo $MSO_URL | sed -e 's/https:\/\/.*\/MacAutoupdate\/Microsoft_Word_\(.*\)_Installer\.pkg/\1/')
           echo $MSO_VER
           echo $MSO_URL
           curl $MSO_URL -o mso.pkg
