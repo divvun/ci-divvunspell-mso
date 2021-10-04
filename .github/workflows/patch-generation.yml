@@ -102,10 +102,11 @@ jobs:
           source "$DIVVUN_CI_CONFIG/enc/env.sh"
           echo "version $VERSION"
           RUST_LOG="info" SENTRY_CLI_PATH="./sentry-cli" PATCHER_PATH="./patcher" \
+          NOTARIZE_DEVELOPER_ACCOUNT="$MACOS_DEVELOPER_ACCOUNT" \
+          NOTARIZE_DEVELOPER_PASSWORD_KEY="$MACOS_DEVELOPER_PASSWORD_CHAIN_ITEM" \
           ./target/release/divvun-bundler-mso -V $VERSION \
             -o outputs \
-            -R -a "Developer ID Application: The University of Tromso (2K5J2584NX)" -i "Developer ID Installer: The University of Tromso (2K5J2584NX)" \
-            -n "$DEVELOPER_ACCOUNT" -p "$DEVELOPER_PASSWORD_CHAIN_ITEM" \
+            -R -a "$MACOS_CODE_SIGN_IDENTITY" -i "$MACOS_CODE_SIGN_IDENTITY_INSTALLER" \
             -H "Divvunspell MSOffice" -t osx msoffice_checker \
             --lib ./libdivvunspellmso.dylib \
             --mso_patches "./patches" \
