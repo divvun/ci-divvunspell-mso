@@ -16,6 +16,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: divvun/mso-nda-resources
+        branch: feature/aarch64
         ssh-key: ${{ secrets.SSH_KEY }}
 
     - name: Setup Divvun CI
@@ -103,7 +104,8 @@ jobs:
           echo "version $VERSION"
           RUST_LOG="info" SENTRY_CLI_PATH="./sentry-cli" PATCHER_PATH="./patcher" \
           NOTARIZE_DEVELOPER_ACCOUNT="$MACOS_DEVELOPER_ACCOUNT" \
-          NOTARIZE_DEVELOPER_PASSWORD_KEY="$MACOS_DEVELOPER_PASSWORD_CHAIN_ITEM" \
+          NOTARIZE_DEVELOPER_PASSWORD="$MACOS_NOTARIZATION_APP_PWD" \
+          NOTARIZE_TEAM_ID="$MACOS_DEVELOPMENT_TEAM" \
           ./target/release/divvun-bundler-mso -V $VERSION \
             -o outputs \
             -R -a "$MACOS_CODE_SIGN_IDENTITY" -i "$MACOS_CODE_SIGN_IDENTITY_INSTALLER" \
